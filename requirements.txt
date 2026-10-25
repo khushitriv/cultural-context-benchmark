@@ -1,0 +1,7 @@
+jsonschema>=4.21
+pandas>=2.1
+numpy>=1.26
+scipy>=1.11
+statsmodels>=0.14
+matplotlib>=3.8
+pytest>=8.0

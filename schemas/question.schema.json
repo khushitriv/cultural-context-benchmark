@@ -1,0 +1,180 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CCAB Question Item",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "version",
+    "status",
+    "primary_domain",
+    "secondary_tags",
+    "region",
+    "community",
+    "religion",
+    "language",
+    "question_type",
+    "difficulty",
+    "prompt",
+    "options",
+    "gold_answer",
+    "acceptable_answers",
+    "scoring_rubric",
+    "explanation",
+    "evidence",
+    "known_variation",
+    "author_review",
+    "review_notes"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "status": {
+      "enum": [
+        "draft",
+        "needs_review",
+        "validated",
+        "excluded"
+      ]
+    },
+    "primary_domain": {
+      "enum": [
+        "weddings_life_events",
+        "festivals_observances",
+        "food_dietary_customs",
+        "language_regional_terminology",
+        "social_etiquette_everyday_life",
+        "religious_practices_contextual_reasoning"
+      ]
+    },
+    "secondary_tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "region": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "community": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "religion": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "language": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "question_type": {
+      "enum": [
+        "multiple_choice",
+        "open_ended"
+      ]
+    },
+    "difficulty": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3
+    },
+    "prompt": {
+      "type": "string",
+      "minLength": 10
+    },
+    "options": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "text"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    },
+    "gold_answer": {
+      "type": "string",
+      "minLength": 1
+    },
+    "acceptable_answers": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scoring_rubric": {
+      "type": "string",
+      "minLength": 1
+    },
+    "explanation": {
+      "type": "string",
+      "minLength": 1
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "citation",
+          "url",
+          "note"
+        ],
+        "properties": {
+          "citation": {
+            "type": "string"
+          },
+          "url": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "note": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "known_variation": {
+      "type": "string"
+    },
+    "author_review": {
+      "enum": [
+        "not_reviewed",
+        "reviewed",
+        "needs_revision"
+      ]
+    },
+    "review_notes": {
+      "type": "string"
+    }
+  }
+}
