@@ -52,7 +52,7 @@ def validate_result_file(path):
                 record = json.loads(line)
             except json.JSONDecodeError as exc:
                 raise ValueError(
-                    f"{path}, line {line_number} invalid json {exc}"
+                    f"{path}, line {line_number} invalid JSON {exc}"
                 ) from exc
 
             if not isinstance(record, dict):

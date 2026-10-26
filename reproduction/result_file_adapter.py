@@ -36,5 +36,5 @@ def extract_model_name(result_file):
             return stem[:-len(suffix)]
 
     raise ValueError(
-        f"result filename convention not recognised- {Path(result_file).name}"
+        f"Unrecognized result filename convention: {Path(result_file).name}"
     )

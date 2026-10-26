@@ -94,6 +94,21 @@ def main():
             "Inspect the source field names before correcting the generator"
         )
 
+        regions = ["North", "South", "East", "West", "Central"]
+
+    def has_answer(q, r):
+        return q[r]["answer"] not in (["N/A"], "N/A")
+
+    qa_pairs = sum(has_answer(q, r) for q in questions for r in regions)
+    universal = sum(bool(q["universal_agreement"]) for q in questions)
+    coverage = {r: sum(has_answer(q, r) for q in questions) for r in regions}
+
+    assert qa_pairs == 1630
+    assert universal == 52
+    assert coverage == {"North": 326, "South": 326, "East": 276,
+                        "West": 354, "Central": 348}
+    print("regional answer counts match the paper")
+
 
 if __name__ == "__main__":
     main()

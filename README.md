@@ -1,153 +1,137 @@
 # Cultural-Context Evaluation and Benchmarking
 
-This is a cultural context accuracy benchmark project which is built on insights from a Partial reproduction and audit of an existing research project and paper titled "*Common to **Whom**? Regional Cultural Common Sense and LLM Bias in India.*"
+How well do language models handle culturally specific knowledge about India? This repository combines two lines of work: **audits of existing research** on cultural evaluation of language models (the first case study is INDICA, a recent benchmark of regional cultural commonsense), and **CCAB**, a new benchmark of accuracy on Gujarati Hindu cultural practices.
 
-The link to the research paper is as follows: xxx
+## Project Highlights
 
-This project is divided into two parts:
-
-First the research reproduction and audit of INDICA - a research pipeline for evaluating regional cultural common sense and LLM bias in India. This section is covered inside the "reference" and "reproduction" folders in the repository.
-
-And secondly, An independent benchmark, which is under development, to investigate how accurately language models handle culturally specific questions about India and South Asia.
-
-The project connects reproducibility-focused research with the development of an independent evaluation framework.
+- Audit: studied existing published work to understand the domain. In the first case study (INDICA), this project recomputes the headline dataset statistics from the released data, finds and documenteds two pipeline bugs, and builts a 24-test suite and adapter layer around the original code without modifying it.
+- Audit: checked the chi-square bias test against an independent calculation on a worked example.
+- CCAB: a multiple-choice benchmark with human-verified answers, distractors tagged by where each wrong practice comes from, and per-item statistics.
+- CCAB: validated schema, spreadsheet-to-dataset importer, answer-leak checks, evaluation runner, and statistics module, all covered by unit tests.
 
 ## Table of Contents
 
-- [Motivation](#motivation)
-- [Project Components](#project-components)
-- [Research reproduction work](#1-indica-research-reproduction-and-code-audit)
-- [Cultural-Context Accuracy Benchmark (CCAB)](#2-cultural-context-accuracy-benchmark-ccab)
-- [Technology Stack](#technology-stack)
-- [Reproducibility and Testing](#reproducibility-and-testing)
+- [Background: the first case study (INDICA)](#background-the-first-case-study-indica)
+- [Part 1: Audits of existing research](#part-1-audits-of-existing-research)
+- [Part 2: CCAB](#part-2-ccab)
+- [How the two parts connect](#how-the-two-parts-connect)
+- [Repository layout](#repository-layout)
+- [Getting started](#getting-started)
 - [Current Status](#current-status)
+- [Scope notes](#scope-notes)
 - [Limitations](#limitations)
 - [References](#references)
 
-## Motivation
 
-Cultural knowledge is not always uniform across regions.
+## Background: the first case study (INDICA)
 
-A response that appears reasonable in one cultural context may be incomplete, inaccurate, or inappropriate in another. Evaluating language models on culturally grounded questions therefore requires attention to regional variation, question design, scoring methodology, and the limitations of evaluation datasets.
+*Common to Whom? Regional Cultural Commonsense and LLM Bias in India* (Madhusudan et al., 2026; [arXiv:2601.15550](https://arxiv.org/abs/2601.15550)) collects answers to 515 everyday-life questions from five Indian regions (1,630 region-specific answers) and finds that only 39.4% of the questions where all five regions answered get the same answer everywhere. It evaluates eight models two ways: region-anchored short answers (RASA), where models reach 13.4% to 20.9% fully correct, and region-agnostic multiple choice (RA-MCQ), where models choose Central and North Indian practices more often than expected.
 
-This project explores these challenges through two complementary activities: examining the implementation of existing research and developing an independent benchmark for cultural context accuracy.
+## Part 1: Audits of existing research
 
-## Project Components
+**Goal:** Part of building CCAB was learning the domain by examining published work on it. Each audit takes one paper's released code and data and checks whether they reproduce the paper's setup. The first case study is INDICA. I picked it as a concrete place to start, I don't claim it better than the alternatives, and further papers may be audited the same way: an unmodified `reference/` copy of the authors' code, with my own checks alongside it.
 
-### 1. Research Reproduction and Code Audit
+### Case study 1: INDICA
 
-This component examines the implementation of the published research pipeline.
+#### Approach: 
 
-The goal is to validate selected aspects of the released code and data against the paper, identify implementation inconsistencies, and test supporting analysis utilities.
+The scripts import the authors' code from `reference/` and call it directly, so every check exercises the real implementation. Fixes live in separate adapter code and the reference folder stays unchanged through the project.
 
-### 2. Cultural-Context Accuracy Benchmark (CCAB)
+#### What I checked:
 
-CCAB is an independent research effort. It aims to evaluate language model responses to culturally specific questions related to India and South Asia.
+| Check | Result |
+|---|---|
+| Questions in released dataset | 515, as in the paper |
+| Region-specific answers | 1,630, as in the paper |
+| Questions where all five regions agree | 52, as in the paper |
+| Questions with a consensus answer: West / Central / North / South / East | 354 / 348 / 326 / 326 / 276, as in the paper |
+| RA-MCQ items generated from the dataset | 79 (32 with all five regions, 47 partial) |
+| Chi-square test | Original code matches an independent scipy calculation on a worked example (chi-square 2.60227, df 4, p 0.62642) |
 
-The benchmark is being developed as a separate contribution with its own question design, evaluation methodology, and planned comparative analysis.
+#### Findings:
 
-## 1. Reproduction and Audit
+1. *Result files are not found by the chi-square script.* `ChiSquareTest.py` searches for `*_ADVERSARIAL_MCQ_results.jsonl`, while the logger and `RAMCQ_bias_detection.py` use `*_RA_MCQ_results.jsonl`. `result_file_adapter.py` finds both styles.
+2. *Generated MCQs lose their category.* `RAMCQ_creation.py` reads `question_category`, but the dataset field is `question_domain`, so all 79 MCQs end up without a category and the per-domain breakdown collapses into one bucket. `ramcq_metadata_fix.py` restores the mapping without changing question content.
 
-**Reference paper:** *Common to Whom? Regional Cultural Commonsense and LLM Bias in India*
+Both are implementation inconsistencies in the released repository; they do not change the paper's conclusions. Full details are in `reproduction/audit_findings.md`.
 
-- Paper: [arXiv:2601.15550](https://arxiv.org/abs/2601.15550)
-- Original repository: [INDICA on GitHub](https://github.com/Sangmitra-06/INDICA)
+An open question for follow-up: The chi-square script pools every repeated run of every question into one test. Repeated answers to the same question are likely correlated, so resampling over questions would be a more conservative check.
 
-### Scope of the audit
+#### Tests:
 
-The Work focused on examining the dataset question generation pipeline result file integration and selected statistical calculations.
+ `python -m pytest reproduction -v` runs 24 tests offline, with no API keys. They cover MCQ generation and metadata, fractional-credit bias scoring, invalid-response handling, the chi-square implementation, option shuffling, and result-file discovery and validation.
 
-The audit included:
+## Part 2: CCAB
 
-- Dataset validation: Checked dataset statistics and regional question–answer counts against the published paper.
-- Question-generation analysis: Examined generated multiple-choice questions, completeness, option counts, and answer-sharing statistics.
-- Implementation audit: Identified inconsistencies in dataset metadata handling and result-file discovery.
-- Statistical verification: Independently checked selected chi-square calculations against a documented example.
-- Testing and integration: Developed validation utilities, an analysis adapter, and synthetic integration tests to assess selected parts of the workflow.
+**Research question:** INDICA shows that with no region given, models lean toward Central and North Indian practices. CCAB asks a finer-grained, checkable version: when asked about one community's practices, do models give the correct answer, and when they're wrong, what do they answer instead?
 
-### Findings
+#### Benchmark design
 
-Two implementation inconsistencies were identified:
+- About 150 four-option multiple-choice questions on Gujarati Hindu traditions, after a 30 to 50 item pilot. Categories: weddings, festivals and rituals, food and fasting, terminology, social norms, and minimal pairs.
+- Every correct answer is written and checked by someone who knows the tradition, and a second person answers a blind subset to measure agreement. Models never decide the answer key.
+- Every wrong option is a real practice from elsewhere and is tagged by source: another region, another Gujarati community, a Western default, or other. Wrong picks therefore show which defaults a model falls back on.
+- Minimal pairs test whether a model changes its answer when only the cultural cue changes.
+- Items carry a `community` tag (`common`, or a specific community once at least 30 items can be verified).
 
-1. Dataset metadata mismatch: The question-generation implementation reads `question_category`, whereas the audited dataset uses `question_domain`. A separate reproduction-side utility was developed to address this mapping issue without modifying the original reference repository.
-2. Result-file discovery mismatch: The result logger and the chi-square analysis script use different filename patterns, potentially preventing the analysis script from discovering the logger's standard output files.
+#### Method:
 
-These findings concern implementation and pipeline integration. They do not, by themselves, establish that the paper's reported conclusions are incorrect.
+1. Questions are written in a spreadsheet and converted to a validated dataset.
+2. A checker flags malformed items, near-duplicates, and unbalanced answer positions.
+3. Shortcut baselines (longest option, most hedging words, fixed position) must score near chance, otherwise the item wording leaks the answer.
+4. Each question is asked under several shuffled option orders at low temperature through OpenRouter, with cached responses.
+5. Results come with Wilson 95% confidence intervals per model, category, and community. Models are compared with paired tests (exact McNemar, paired bootstrap, Holm correction), and wrong answers are analysed by distractor source with item-level bootstrapping.
 
-### Testing
+#### Built so far:
 
-The reproduction-side test suite reached 24 passing tests, covering validation utilities, metadata handling, analysis integration, and synthetic pipeline scenarios.
+- Single-source item schema with validator and unit tests
+- Spreadsheet importer that balances answer positions
+- Shortcut-baseline checks
+- Evaluation runner with option shuffling, answer parsing, caching, and offline mock models
+- Statistics module and report generator
 
-These tests support the correctness of the tested components. However, they do not constitute a full reproduction of the paper's model-level experiments.
+**Next:** pilot questions, second-verifier check, full question set, model runs, error analysis, datasheet and write-up.
 
-### Scope and limitations
+## How the two parts connect
 
-This work is a partial research reproduction and code audit, not a complete reproduction of all reported experimental results.
+CCAB is independent of INDICA and shares none of its data or code. Working through INDICA showed me where there was room to go deeper: its limitations section leaves finer-grained analysis and areas like marriage for future work. The audit also shaped how I built CCAB, with a single schema definition, explicit run-file paths, and per-question statistics.
 
-The original model-level evaluation was not independently rerun in full. Consequently, the paper's reported model-performance findings should be understood as published results rather than independently reproduced findings.
+| | INDICA | CCAB |
+|---|---|---|
+| Granularity | 5 regions | One tradition, community tags |
+| Answer format | Free text (RASA), options without a single right answer (RA-MCQ) | Multiple choice, one verified answer |
+| Ground truth | 4 of 5 regional participants agree | Author-written, second-person verified |
+| Scoring | LLM judge with partial credit | Exact match, no judge |
 
-## 2. Cultural-Context Accuracy Benchmark (CCAB)
+## Repository layout
 
-Status: In progress
+    reference/INDICA/   authors' repository (CC BY 4.0), unmodified
+    reproduction/       audit code, adapters, tests, audit_findings.md
 
-CCAB is an independent benchmark being developed to investigate the cultural-context accuracy of language models on questions relating to India and South Asia.
+    data/review/         where CCAB questions are written
+    data/draft/         generated dataset
+    schemas/            generated item schema
+    src/                CCAB importer, validator, baselines, runner, statistics, report
+    tests/              CCAB unit tests
+    docs/               datasheet and protocol
 
-Where the first component focuses on existing research implementation CCAB focuses on developing an independent evaluation framework.
+## Getting started
+    ```bash
+    pip install -r requirements.txt
 
-### Research objectives
+    # audit
+    python -m pytest reproduction -v
+    ```
+    ```bash
+    # CCAB
+    # (under development)
+    # The Cultural-Context Accuracy Benchmark (CCAB) is under active development. The current implementation includes a draft question dataset, dataset validation and auditing utilities, and a review-sheet workflow.
 
-- Develop a structured collection of culturally specific questions.
-- Explore evaluation of both multiple-choice and open-ended model responses.
-- Establish reference answers and a human-reviewed scoring process.
-- Compare model performance across questions and cultural categories.
-- Analyze recurring errors and areas where model responses may lack cultural specificity.
-- Use appropriate statistical methods to quantify performance differences and uncertainty.
-- Prioritize reproducible experiments using freely accessible tools and models where feasible.
+    # The dataset validation and review-sheet export workflows are still being refined. Automated testing, model evaluation, statistical analysis, and report generation remain in development.
 
-### Planned evaluation methodology
+    # Usage instructions will be added once the corresponding workflows are implemented and verified. 
+    ```
 
-The benchmark is intended to support analysis at multiple levels:
-
-- Overall performance: How accurately does each evaluated model answer the questions?
-- Category-level performance: Does performance vary across cultural topics?
-- Response-type comparison: Do results differ between multiple-choice and open-ended questions?
-- Error analysis: What types of cultural misunderstandings or inaccuracies occur?
-- Statistical uncertainty: How robust are observed differences between models?
-
-These are development goals, not claims of completed experiments. Dataset size, evaluated models, scoring procedures, and statistical methods will be documented as the implementation progresses.
-
-### Role of previous research reproduction
-
-The partial reproduction and audit of the published paper works as a reference and provides practical experience in examining cultural-evaluation datasets, checking research implementations, and validating statistical workflows.
-
-CCAB uses that experience as input to an independent benchmark-development effort. It is not a reproduction of it's dataset or a claim to authorship of the original paper.
-
-## Technology Stack
-
-The repository's research and validation work uses or is organized around:
-
-- Python: data processing, validation, and analysis.
-- pytest: automated testing.
-- Statistical analysis: validation of selected statistical calculations and development of evaluation methods.
-- LLM evaluation tooling: intended for the independent CCAB experiments as the evaluation pipeline develops.
-
-The exact dependencies and environment setup should be maintained in the repository's dependency files as the implementation evolves.
-
-## Reproducibility and Testing
-
-Reproducibility is a central consideration across both components.
-
-The INDICA audit includes automated tests and synthetic integration scenarios to verify selected pipeline behavior without requiring the original large-scale model evaluation.
-
-To run the reproduction test suite from the repository root, use:
-
-```bash
-python -m pytest ./reproduction -v
-```
-
-The audited test suite completed with 24 passing tests in the recorded run. Results may vary if the environment or code changes.
-
-For future CCAB experiments, the intended practice is to document the dataset version, model identifiers, prompts, scoring rules, random seeds where applicable, and evaluation settings so results can be interpreted and reproduced.
+Real models run through OpenRouter; set `OPENROUTER_API_KEY` in your environment and do not commit it.
 
 ## Current Status
 
@@ -160,6 +144,10 @@ For future CCAB experiments, the intended practice is to document the dataset ve
 | CCAB research design and benchmark development | In progress |
 | Large-scale CCAB model evaluation | Planned |
 | CCAB comparative results and error analysis | Pending implementation and experiments |
+
+## Scope notes
+
+The audit covers the RA-MCQ half of INDICA using the released dataset and code, and cites the paper's model results as published. CCAB focuses on one tradition and measures recognition through multiple choice; practices vary between families, so each item records known variation.
 
 ## Limitations
 
@@ -175,3 +163,7 @@ For future CCAB experiments, the intended practice is to document the dataset ve
 1. *Common to Whom? Regional Cultural Commonsense and LLM Bias in India.* [Read the paper](https://arxiv.org/abs/2601.15550).
 
 2. Original implementation: [Sangmitra-06/INDICA](https://github.com/Sangmitra-06/INDICA).
+
+BibTeX entries for all cited work are collected in [`references.bib`](references.bib).
+
+`reference/` is the authors' work under CC BY 4.0 (see `reference/INDICA/LICENSE`). I am not affiliated with the authors. Everything else is mine.

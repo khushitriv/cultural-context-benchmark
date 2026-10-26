@@ -3,7 +3,7 @@ import importlib.util
 import json
 from pathlib import Path
 
-repo_root = Path("reference/INDICA")
+repo_root = Path(__file__).resolve().parents[1] / "reference" / "INDICA"
 
 dataset_path = repo_root / "Dataset" / "dataset.json"
 generator_path = (
